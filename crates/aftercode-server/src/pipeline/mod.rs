@@ -57,9 +57,10 @@ pub async fn run_pipeline(
             audio,
         });
     }
-    let full = concat_with_gaps(&rendered);
-    let duration = full.duration_seconds() as i32;
-    let mp3 = encode_mp3(&full)?;
+    let rate = tts.sample_rate();
+    let full = concat_with_gaps(&rendered, rate);
+    let duration = full.duration_seconds(rate) as i32;
+    let mp3 = encode_mp3(&full, rate)?;
     let url = blob
         .put(&format!("episodes/{episode_key}.mp3"), mp3, "audio/mpeg")
         .await?;

@@ -1,10 +1,13 @@
 use crate::config::Config;
-use aftercode_core::audio::{PcmAudio, VoiceRole, SAMPLE_RATE};
+use aftercode_core::audio::{PcmAudio, VoiceRole, OPENAI_SAMPLE_RATE, SAMPLE_RATE};
 use aftercode_core::session::Language;
 use async_trait::async_trait;
 
 #[async_trait]
 pub trait TtsProvider: Send + Sync {
+    /// Sample rate (Hz) of the PCM this provider returns. One provider is used
+    /// per episode, so the assembler uses this rate for silence gaps + encoding.
+    fn sample_rate(&self) -> u32;
     async fn synthesize(
         &self,
         text: &str,
@@ -17,6 +20,9 @@ pub struct MockTts;
 
 #[async_trait]
 impl TtsProvider for MockTts {
+    fn sample_rate(&self) -> u32 {
+        SAMPLE_RATE
+    }
     async fn synthesize(
         &self,
         text: &str,
@@ -57,6 +63,9 @@ pub fn eleven_from_cfg(cfg: &Config) -> anyhow::Result<ElevenLabsProvider> {
 
 #[async_trait]
 impl TtsProvider for ElevenLabsProvider {
+    fn sample_rate(&self) -> u32 {
+        SAMPLE_RATE
+    }
     async fn synthesize(
         &self,
         text: &str,
@@ -88,6 +97,66 @@ impl TtsProvider for ElevenLabsProvider {
     }
 }
 
+pub struct OpenAiTts {
+    key: String,
+    model: String,
+    host_voice: String,
+    expert_voice: String,
+    http: reqwest::Client,
+}
+
+pub fn openai_tts_from_cfg(cfg: &Config) -> anyhow::Result<OpenAiTts> {
+    Ok(OpenAiTts {
+        key: cfg
+            .openai_api_key
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("OPENAI_API_KEY not set for TTS"))?,
+        model: cfg.openai_tts_model.clone(),
+        host_voice: cfg.openai_tts_voice_host.clone(),
+        expert_voice: cfg.openai_tts_voice_expert.clone(),
+        http: reqwest::Client::new(),
+    })
+}
+
+#[async_trait]
+impl TtsProvider for OpenAiTts {
+    fn sample_rate(&self) -> u32 {
+        // /v1/audio/speech with response_format=pcm returns 24kHz 16-bit mono LE.
+        OPENAI_SAMPLE_RATE
+    }
+    async fn synthesize(
+        &self,
+        text: &str,
+        voice: VoiceRole,
+        _lang: Language,
+    ) -> anyhow::Result<PcmAudio> {
+        let v = match voice {
+            VoiceRole::Host => &self.host_voice,
+            VoiceRole::Expert => &self.expert_voice,
+        };
+        let resp = self
+            .http
+            .post("https://api.openai.com/v1/audio/speech")
+            .bearer_auth(&self.key)
+            .json(&serde_json::json!({
+                "model": self.model,
+                "voice": v,
+                "input": text,
+                "response_format": "pcm"
+            }))
+            .send()
+            .await?
+            .error_for_status()?;
+        let bytes = resp.bytes().await?;
+        // pcm response is little-endian i16 mono at 24kHz.
+        let samples = bytes
+            .chunks_exact(2)
+            .map(|c| i16::from_le_bytes([c[0], c[1]]))
+            .collect();
+        Ok(PcmAudio { samples })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,5 +167,31 @@ mod tests {
             .await
             .unwrap();
         assert!(!p.samples.is_empty());
+    }
+    #[test]
+    fn provider_sample_rates() {
+        assert_eq!(MockTts.sample_rate(), SAMPLE_RATE);
+        let cfg = Config {
+            database_url: "x".into(),
+            bind_addr: "x".into(),
+            public_url: "x".into(),
+            llm_provider: "mock".into(),
+            anthropic_api_key: None,
+            openai_api_key: Some("k".into()),
+            elevenlabs_api_key: None,
+            host_voice_id: None,
+            expert_voice_id: None,
+            tts_provider: "openai".into(),
+            openai_tts_model: "gpt-4o-mini-tts".into(),
+            openai_tts_voice_host: "alloy".into(),
+            openai_tts_voice_expert: "onyx".into(),
+            blob_store: "mock".into(),
+            localfs_dir: "x".into(),
+            s3_bucket: None,
+        };
+        assert_eq!(
+            openai_tts_from_cfg(&cfg).unwrap().sample_rate(),
+            OPENAI_SAMPLE_RATE
+        );
     }
 }

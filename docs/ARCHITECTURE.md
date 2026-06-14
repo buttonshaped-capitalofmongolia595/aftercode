@@ -38,7 +38,10 @@ spawns would otherwise clobber the final status — this was a real bug caught b
 
 - `LlmProvider` — `AnthropicProvider` (default, `claude-opus-4-8`, structured JSON via
   `output_config.format`), `OpenAiProvider` (JSON mode), `MockLlm` (tests/offline).
-- `TtsProvider` — `ElevenLabsProvider` (per-segment PCM 44.1kHz), `MockTts`.
+- `TtsProvider` — `ElevenLabsProvider` (PCM 44.1kHz), `OpenAiTts` (`/v1/audio/speech`,
+  `gpt-4o-mini-tts`, PCM 24kHz), `MockTts`. Selected via `TTS_PROVIDER`. Each reports
+  `sample_rate()`; the assembler threads it through silence gaps + MP3 encoding so a 24kHz
+  provider produces correctly-pitched audio (one provider per episode → consistent rate).
 - `BlobStore` — `LocalFs` (served at `/static`), `S3Store` (R2/S3), `MockBlob`.
 
 Selected at startup from env in `state.rs`. Tests inject mocks via `AppState::for_test`.

@@ -9,6 +9,10 @@ pub struct Config {
     pub elevenlabs_api_key: Option<String>,
     pub host_voice_id: Option<String>,
     pub expert_voice_id: Option<String>,
+    pub tts_provider: String, // "elevenlabs" | "openai" | "mock"
+    pub openai_tts_model: String,
+    pub openai_tts_voice_host: String,
+    pub openai_tts_voice_expert: String,
     pub blob_store: String, // "localfs" | "s3" | "mock"
     pub localfs_dir: String,
     pub s3_bucket: Option<String>,
@@ -30,6 +34,13 @@ impl Config {
             elevenlabs_api_key: std::env::var("ELEVENLABS_API_KEY").ok(),
             host_voice_id: std::env::var("ELEVENLABS_HOST_VOICE_ID").ok(),
             expert_voice_id: std::env::var("ELEVENLABS_EXPERT_VOICE_ID").ok(),
+            tts_provider: std::env::var("TTS_PROVIDER").unwrap_or_else(|_| "elevenlabs".into()),
+            openai_tts_model: std::env::var("OPENAI_TTS_MODEL")
+                .unwrap_or_else(|_| "gpt-4o-mini-tts".into()),
+            openai_tts_voice_host: std::env::var("OPENAI_TTS_VOICE_HOST")
+                .unwrap_or_else(|_| "alloy".into()),
+            openai_tts_voice_expert: std::env::var("OPENAI_TTS_VOICE_EXPERT")
+                .unwrap_or_else(|_| "onyx".into()),
             blob_store: std::env::var("BLOB_STORE").unwrap_or_else(|_| "localfs".into()),
             localfs_dir: std::env::var("LOCALFS_DIR").unwrap_or_else(|_| "./data/audio".into()),
             s3_bucket: std::env::var("S3_BUCKET").ok(),

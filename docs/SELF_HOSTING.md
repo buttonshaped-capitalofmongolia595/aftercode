@@ -31,9 +31,13 @@ Copy `.env.example` to `.env` and fill in:
 | `LLM_PROVIDER` | `anthropic` (default), `openai`, or `mock` |
 | `ANTHROPIC_API_KEY` | Required when `LLM_PROVIDER=anthropic` (model `claude-opus-4-8`) |
 | `OPENAI_API_KEY` | Required when `LLM_PROVIDER=openai` |
-| `ELEVENLABS_API_KEY` | ElevenLabs key; if unset, a silent mock TTS is used |
-| `ELEVENLABS_HOST_VOICE_ID` | Voice for the host speaker |
-| `ELEVENLABS_EXPERT_VOICE_ID` | Voice for the expert speaker |
+| `TTS_PROVIDER` | `elevenlabs` (default), `openai`, or `mock`. Falls back to mock if the chosen provider's key is missing |
+| `ELEVENLABS_API_KEY` | ElevenLabs key (when `TTS_PROVIDER=elevenlabs`) |
+| `ELEVENLABS_HOST_VOICE_ID` | ElevenLabs voice for the host speaker |
+| `ELEVENLABS_EXPERT_VOICE_ID` | ElevenLabs voice for the expert speaker |
+| `OPENAI_TTS_MODEL` | OpenAI TTS model when `TTS_PROVIDER=openai`, default `gpt-4o-mini-tts` (uses `OPENAI_API_KEY`) |
+| `OPENAI_TTS_VOICE_HOST` | OpenAI voice for host, default `alloy` |
+| `OPENAI_TTS_VOICE_EXPERT` | OpenAI voice for expert, default `onyx` |
 | `BLOB_STORE` | `localfs` (default) or `s3` |
 | `LOCALFS_DIR` | Audio dir for `localfs`, served at `/static` |
 | `S3_BUCKET` | Bucket for `s3` (uses standard AWS env credentials; works with Cloudflare R2 via `AWS_ENDPOINT_URL`) |
