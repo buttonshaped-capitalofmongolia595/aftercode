@@ -88,14 +88,26 @@ pub async fn status() -> anyhow::Result<()> {
             "not configured"
         }
     );
+    let agent = collect::detected_agent(None);
+    println!(
+        "Agent:     {}",
+        agent.unwrap_or_else(|| "none detected (will use git diff only)".into())
+    );
     Ok(())
 }
 
 pub fn preview() -> anyhow::Result<()> {
     let cfg = Config::load()?;
-    let ctx = collect::build(&cfg, None, "today", None)?;
+    let agent = collect::detected_agent(None);
+    let ctx = collect::build(&cfg, None, "today", None, None)?;
     println!("Aftercode will send:\n");
-    println!("Changed files:");
+    println!(
+        "Agent session: {}",
+        agent
+            .clone()
+            .unwrap_or_else(|| "none (git diff only)".into())
+    );
+    println!("\nChanged files:");
     for f in &ctx.changed_files {
         println!("  - {f}");
     }
@@ -108,9 +120,16 @@ pub fn preview() -> anyhow::Result<()> {
             println!("  - {e}");
         }
     }
-    println!("\nEvents collected: {}", ctx.events.len());
+    // event breakdown by type
+    use aftercode_core::session::EventType;
+    let count = |t: EventType| ctx.events.iter().filter(|e| e.event_type == t).count();
+    println!("\nEvents collected: {} total", ctx.events.len());
+    println!("  prompts:        {}", count(EventType::UserPrompt));
+    println!("  agent messages: {}", count(EventType::AgentResponse));
+    println!("  file changes:   {}", count(EventType::FileChanged));
+    println!("  diff hunks:     {}", count(EventType::GitDiff));
     println!(
-        "Language: {:?}  Length: {} min",
+        "\nLanguage: {:?}  Length: {} min",
         ctx.language, ctx.episode_length_minutes
     );
     Ok(())
@@ -120,10 +139,16 @@ pub async fn episode(
     language: Option<String>,
     from: String,
     length: Option<u8>,
+    agent: Option<String>,
 ) -> anyhow::Result<()> {
     let cfg = Config::load()?;
     let token = credentials::load_token()?;
-    let ctx = collect::build(&cfg, language.clone(), &from, length)?;
+    if let Some(a) = collect::detected_agent(agent.as_deref()) {
+        println!("Using {a} session for this repo.");
+    } else {
+        println!("No agent session detected — using git diff only.");
+    }
+    let ctx = collect::build(&cfg, language.clone(), &from, length, agent)?;
     let lang = language.unwrap_or_else(|| cfg.language.clone());
     let client = Client::new(cfg.api_base_url.clone(), token);
 

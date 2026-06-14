@@ -4,6 +4,7 @@ mod commands;
 mod config;
 mod credentials;
 mod privacy;
+mod session;
 
 use clap::{Parser, Subcommand};
 
@@ -36,6 +37,9 @@ enum Cmd {
         from: String,
         #[arg(long)]
         length: Option<u8>,
+        /// Force a specific agent session source (claude-code|codex|cursor)
+        #[arg(long)]
+        agent: Option<String>,
     },
     /// Add a path/glob to the ignore list
     Ignore { pattern: String },
@@ -55,7 +59,8 @@ async fn main() -> anyhow::Result<()> {
             language,
             from,
             length,
-        } => commands::episode(language, from, length).await,
+            agent,
+        } => commands::episode(language, from, length, agent).await,
         Cmd::Ignore { pattern } => commands::ignore(pattern),
         Cmd::Open => commands::open(),
     }

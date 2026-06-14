@@ -1,9 +1,12 @@
-use git2::Repository;
+use git2::{DiffFormat, Repository};
+use std::collections::BTreeMap;
 
 pub struct GitData {
     pub changed_files: Vec<String>,
     pub diff_summary: Option<String>,
     pub commit_messages: Vec<String>,
+    /// (path, patch text) per changed, non-binary file.
+    pub diff_hunks: Vec<(String, String)>,
 }
 
 /// Collect changed files (working dir vs HEAD), a short diff summary, and
@@ -38,6 +41,28 @@ pub fn collect(repo_path: &str, since_days: i64) -> anyhow::Result<GitData> {
         ))
     };
 
+    // Per-file diff hunks (skip binary). Keyed by path to group lines.
+    let mut hunks: BTreeMap<String, String> = BTreeMap::new();
+    diff.print(DiffFormat::Patch, |delta, _hunk, line| {
+        if delta.new_file().is_binary() || delta.old_file().is_binary() {
+            return true;
+        }
+        let path = delta
+            .new_file()
+            .path()
+            .or_else(|| delta.old_file().path())
+            .map(|p| p.display().to_string())
+            .unwrap_or_default();
+        let buf = hunks.entry(path).or_default();
+        let origin = line.origin();
+        if matches!(origin, '+' | '-' | ' ') {
+            buf.push(origin);
+        }
+        buf.push_str(&String::from_utf8_lossy(line.content()));
+        true
+    })?;
+    let diff_hunks: Vec<(String, String)> = hunks.into_iter().collect();
+
     // Commit messages within the window.
     let mut msgs = Vec::new();
     if let Ok(mut walk) = repo.revwalk() {
@@ -60,6 +85,7 @@ pub fn collect(repo_path: &str, since_days: i64) -> anyhow::Result<GitData> {
         changed_files: changed,
         diff_summary: summary,
         commit_messages: msgs,
+        diff_hunks,
     })
 }
 
@@ -95,5 +121,16 @@ mod tests {
         assert!(data.commit_messages.iter().any(|m| m == "first commit"));
         assert!(data.changed_files.iter().any(|f| f == "a.txt"));
         assert!(data.diff_summary.is_some());
+        // diff hunks include the added line content
+        let patch = data
+            .diff_hunks
+            .iter()
+            .find(|(p, _)| p == "a.txt")
+            .map(|(_, t)| t.clone())
+            .expect("hunk for a.txt");
+        assert!(
+            patch.contains("+two"),
+            "patch should show added line, got:\n{patch}"
+        );
     }
 }
