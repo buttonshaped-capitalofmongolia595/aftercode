@@ -22,5 +22,6 @@ pub fn router(state: AppState) -> Router {
         .route("/episodes/:id", get(episodes::detail))
         .route("/episodes/:id/retry", post(episodes::retry))
         .nest_service("/static", tower_http::services::ServeDir::new(static_dir))
+        .layer(tower_http::trace::TraceLayer::new_for_http())
         .with_state(state)
 }
