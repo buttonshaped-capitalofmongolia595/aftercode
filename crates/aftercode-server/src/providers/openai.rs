@@ -11,6 +11,30 @@ fn lang_code(l: Language) -> &'static str {
     }
 }
 
+fn lang_name(l: Language) -> &'static str {
+    match l {
+        Language::He => "Hebrew",
+        Language::En => "English",
+    }
+}
+
+/// Language-specific system prompt — the script CONTENT must be in this language.
+fn script_system(l: Language) -> &'static str {
+    match l {
+        Language::He => {
+            "You write a two-speaker technical podcast (host + expert) ENTIRELY IN \
+            HEBREW. Sound natural, like Israeli developers actually speak; keep technical terms in \
+            English when that's how devs say them (e.g. \"deploy\", \"index\", \"queue\"); avoid \
+            over-formal Hebrew. Every field — title, each segment's text, summary_points, and quiz \
+            — must be written in Hebrew. Return JSON only."
+        }
+        Language::En => {
+            "You write a two-speaker technical podcast (host + expert) in English. \
+            Calm mentor tone, practical, not cheesy. Return JSON only."
+        }
+    }
+}
+
 pub struct OpenAiProvider {
     key: String,
     http: reqwest::Client,
@@ -68,14 +92,15 @@ impl LlmProvider for OpenAiProvider {
         opts: &ScriptOpts,
     ) -> anyhow::Result<EpisodeScript> {
         let user = format!(
-            "Return JSON with title, language, segments[(speaker host|expert, text)], \
-            summary_points[], quiz{{question,answer}}. {} minutes. Topics:\n{}",
+            "Write everything ({} target) in {}. Return JSON with title, language, \
+            segments[(speaker host|expert, text)], summary_points[], quiz{{question,answer}}. \
+            {} minutes. Topics:\n{}",
+            opts.minutes,
+            lang_name(opts.language),
             opts.minutes,
             serde_json::to_string(topics)?
         );
-        let mut v = self
-            .call_json("Two-speaker technical podcast. JSON only.", &user)
-            .await?;
+        let mut v = self.call_json(script_system(opts.language), &user).await?;
         // The model may echo "English"/"Hebrew"; force the canonical enum code.
         v["language"] = serde_json::Value::String(lang_code(opts.language).into());
         Ok(serde_json::from_value(v)?)
