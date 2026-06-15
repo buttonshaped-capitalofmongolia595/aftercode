@@ -1,3 +1,4 @@
+mod auth_login;
 mod client;
 mod collect;
 mod commands;
@@ -23,8 +24,14 @@ struct Cli {
 enum Cmd {
     /// Initialize Aftercode in the current project
     Init,
-    /// Save a personal access token
-    Login { token: String },
+    /// Log in. With no token, opens the browser to approve this CLI.
+    Login {
+        /// Optional token to save directly (skips the browser flow).
+        token: Option<String>,
+        /// Backend URL for the browser flow (default: project config or localhost:8080).
+        #[arg(long)]
+        backend: Option<String>,
+    },
     /// Show project + collector status
     Status,
     /// Show what would be uploaded (no network)
@@ -59,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
         Cmd::Init => commands::init().await,
-        Cmd::Login { token } => commands::login(token),
+        Cmd::Login { token, backend } => commands::login(token, backend),
         Cmd::Status => commands::status().await,
         Cmd::Preview => commands::preview(),
         Cmd::Episode {

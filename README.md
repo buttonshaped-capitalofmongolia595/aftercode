@@ -49,11 +49,18 @@ cargo run -p aftercode-server                             # serves on :8080
 
 # 3. CLI
 cargo install --path crates/aftercode-cli   # installs `aftercode`
-aftercode login ak_...
+aftercode login                  # opens the browser, click Approve — done
+#   (or paste a token directly: `aftercode login ak_...`)
 cd your-project && aftercode init
 aftercode preview
 aftercode episode --language en
 ```
+
+`aftercode login` (no arg) opens `<backend>/cli/authorize`; click **Approve** and the
+CLI captures the token via a localhost loopback — no copy-paste. This local-approval
+flow performs **no identity check** and is for trusted localhost/self-host only; a public
+backend should use a real OAuth provider (not yet built). `aftercode login <token>` and
+`seed-user` remain for scripts/CI.
 
 `aftercode episode` prints the generated title and the audio link
 (`/static/episodes/<id>.mp3`).

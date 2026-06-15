@@ -1,4 +1,5 @@
 pub mod cli;
+pub mod cli_auth;
 pub mod episodes;
 pub mod health;
 pub mod projects;
@@ -14,6 +15,8 @@ pub fn router(state: AppState) -> Router {
         .route("/", get(health::landing))
         .route("/healthz", get(health::healthz))
         .route("/me", get(projects::me))
+        .route("/cli/authorize", get(cli_auth::authorize))
+        .route("/cli/approve", post(cli_auth::approve))
         .route("/projects", post(projects::create).get(projects::list))
         .route("/cli/register-project", post(projects::register))
         .route("/cli/upload-session", post(sessions::upload))

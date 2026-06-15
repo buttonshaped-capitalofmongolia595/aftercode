@@ -90,10 +90,15 @@ pub async fn init() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn login(token: String) -> anyhow::Result<()> {
-    credentials::save_token(&token)?;
-    println!("Saved credentials.");
-    Ok(())
+pub fn login(token: Option<String>, backend: Option<String>) -> anyhow::Result<()> {
+    match token {
+        Some(t) => {
+            credentials::save_token(&t)?;
+            println!("Saved credentials.");
+            Ok(())
+        }
+        None => crate::auth_login::browser_login(backend),
+    }
 }
 
 pub async fn status() -> anyhow::Result<()> {
