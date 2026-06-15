@@ -52,6 +52,17 @@ impl Client {
         Ok(v["episode_id"].as_str().unwrap_or_default().to_string())
     }
 
+    /// True if the stored token is accepted by the backend (GET /me == 200).
+    pub async fn token_valid(&self) -> bool {
+        self.http
+            .get(self.url("/me"))
+            .bearer_auth(&self.token)
+            .send()
+            .await
+            .map(|r| r.status().is_success())
+            .unwrap_or(false)
+    }
+
     pub async fn episode_status(&self, id: &str) -> anyhow::Result<serde_json::Value> {
         Ok(self
             .http

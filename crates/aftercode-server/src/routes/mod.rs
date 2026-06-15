@@ -11,6 +11,7 @@ use axum::Router;
 pub fn router(state: AppState) -> Router {
     let static_dir = state.cfg.localfs_dir.clone();
     Router::new()
+        .route("/", get(health::landing))
         .route("/healthz", get(health::healthz))
         .route("/me", get(projects::me))
         .route("/projects", post(projects::create).get(projects::list))

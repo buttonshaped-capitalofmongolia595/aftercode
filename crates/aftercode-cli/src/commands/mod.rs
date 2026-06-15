@@ -98,14 +98,29 @@ pub fn login(token: String) -> anyhow::Result<()> {
 
 pub async fn status() -> anyhow::Result<()> {
     let cfg = Config::load()?;
-    let logged_in = credentials::load_token().is_ok();
     let git_ok = git2::Repository::open(".").is_ok();
     let hooks_ok = std::path::Path::new(".aftercode/events").exists();
+
+    // Validate the token against the backend — a local token may be stale/invalid.
+    let auth = match credentials::load_token() {
+        Err(_) => "no — run `aftercode login <token>`".to_string(),
+        Ok(tok) => {
+            if Client::new(cfg.api_base_url.clone(), tok)
+                .token_valid()
+                .await
+            {
+                "yes (token valid)".to_string()
+            } else {
+                "token present but INVALID/expired — run `aftercode login <token>`".to_string()
+            }
+        }
+    };
+
     println!("Aftercode status\n");
     println!("Project:   {}", cfg.project_name);
     println!("Language:  {}", cfg.language);
     println!("Backend:   {}", cfg.api_base_url);
-    println!("Logged in: {}", if logged_in { "yes" } else { "no" });
+    println!("Logged in: {auth}");
     println!(
         "Git:       {}",
         if git_ok { "connected" } else { "not a repo" }
