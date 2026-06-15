@@ -12,8 +12,10 @@ Open source (MIT OR Apache-2.0), CLI-first, self-hostable.
 
 ```
 aftercode episode
-   │  collect git diff + changed files + commits + hook events + terminal errors
-   │  scan for secrets, apply ignore rules, redact
+   │  auto-detect your coding-agent session (Claude Code / Codex / Cursor) →
+   │    your prompts + what the agent did/explained
+   │  + the real git diff (the Redis client, RabbitMQ config, new deps it added)
+   │  scan for secrets, apply ignore rules, redact, cap size
    ▼
 backend pipeline
    normalize → extract topics → detect knowledge gaps → rank →
@@ -66,10 +68,11 @@ topic and script generation. Providers are pluggable behind a trait.
 
 ## Privacy
 
-By default Aftercode sends file **paths**, diff **summaries**, error messages, and agent
-prompt/response summaries — never full source, `.env`, secrets, or ignored paths. A regex
-secret scanner redacts anything that looks like a key/token before upload, and
-`aftercode preview` shows exactly what would be sent.
+Aftercode sends your agent-session transcript (prompts + agent messages + the commands/edits
+it ran) and the **git diff hunks** — never full source files, `.env`, secrets, or ignored
+paths. A regex secret scanner redacts anything that looks like a key/token before upload,
+payload size is capped, and `aftercode preview` shows exactly what would be sent (including a
+per-type event breakdown and which agent was detected).
 
 ## Status
 

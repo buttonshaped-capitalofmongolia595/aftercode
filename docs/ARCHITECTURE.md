@@ -64,8 +64,16 @@ validates per request. `aftercode-server seed-user <email>` mints a token for se
 
 ## CLI
 
-- `collect/` — `git` (git2: changed files, diff summary, commits), `hooks` (read
-  `.aftercode/events/*.jsonl`), `errors` (read `.aftercode/errors.log`).
+- `session/` — reads the developer's **coding-agent session** so episodes reflect what
+  actually happened. `SessionReader` trait + `ClaudeCodeReader` (`~/.claude/projects/<encoded-cwd>/*.jsonl`),
+  `CodexReader` (`~/.codex/sessions/**/rollout-*.jsonl`), `CursorReader` (Cursor `state.vscdb`
+  SQLite, best-effort). `detect_best` auto-picks the most-recently-active agent for the repo;
+  `--agent` overrides; any reader returns `None` rather than panicking, so `episode` always
+  degrades to diff-only.
+- `collect/` — `git` (git2: changed files, **per-file diff hunks**, commits), `hooks` (read
+  `.aftercode/events/*.jsonl`), `errors` (read `.aftercode/errors.log`). `collect::build` merges
+  the agent transcript + diff hunks into `events`, redacts secrets, and caps size
+  (8K chars/event, 150K total, newest-kept).
 - `privacy/` — `secrets` (regex scan + line redaction), `ignore` (gitignore-style matcher).
 - `collect::build` assembles a `SessionContext`, dropping ignored paths and redacting secrets
   from every free-text field before anything leaves the machine.
