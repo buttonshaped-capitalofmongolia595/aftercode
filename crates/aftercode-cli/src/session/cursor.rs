@@ -24,29 +24,37 @@ pub fn read_session(user_dir: &Path, project_dir: &Path) -> Option<AgentSession>
     let ws_storage = user_dir.join("workspaceStorage");
     let hash_dir = find_workspace(&ws_storage, project_dir)?;
 
-    // composer ids belonging to this workspace
     let ws_db = hash_dir.join("state.vscdb");
-    let composers = workspace_composers(&ws_db);
-    if composers.is_empty() {
+    let composer_ids = workspace_composer_ids(&ws_db);
+    if composer_ids.is_empty() {
         return None;
     }
 
-    // conversations live in globalStorage cursorDiskKV
     let global_db = user_dir.join("globalStorage").join("state.vscdb");
     let conn = open_ro(&global_db)?;
 
-    let mut events = Vec::new();
-    let mut ended_at = 0i64;
-    for (cid, updated) in &composers {
-        ended_at = ended_at.max(*updated);
+    // Pick the most-recently-updated composer for this workspace.
+    let mut best: Option<(String, Value, i64)> = None; // (id, composerData, lastUpdated secs)
+    for cid in &composer_ids {
         let Some(blob) = kv_get(&conn, &format!("composerData:{cid}")) else {
             continue;
         };
         let Ok(d) = serde_json::from_str::<Value>(&blob) else {
             continue;
         };
-        harvest_messages(&d, &mut events);
+        let updated = d
+            .get("lastUpdatedAt")
+            .or_else(|| d.get("createdAt"))
+            .and_then(|v| v.as_i64())
+            .map(|ms| ms / 1000)
+            .unwrap_or(0);
+        if best.as_ref().map(|(_, _, u)| updated > *u).unwrap_or(true) {
+            best = Some((cid.clone(), d, updated));
+        }
     }
+    let (cid, data, ended_at) = best?;
+
+    let events = extract_bubbles(&conn, &cid, &data);
     if events.is_empty() {
         return None;
     }
@@ -55,6 +63,53 @@ pub fn read_session(user_dir: &Path, project_dir: &Path) -> Option<AgentSession>
         ended_at,
         events,
     })
+}
+
+/// Walk `fullConversationHeadersOnly` and fetch each `bubbleId:<cid>:<bid>` row.
+fn extract_bubbles(conn: &Connection, cid: &str, data: &Value) -> Vec<CodingEvent> {
+    let mut events = Vec::new();
+    let headers = data
+        .get("fullConversationHeadersOnly")
+        .and_then(|v| v.as_array());
+    let Some(headers) = headers else {
+        return events;
+    };
+    for h in headers {
+        let Some(bid) = h.get("bubbleId").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        let Some(raw) = kv_get(conn, &format!("bubbleId:{cid}:{bid}")) else {
+            continue;
+        };
+        let Ok(b) = serde_json::from_str::<Value>(&raw) else {
+            continue;
+        };
+        let text = b.get("text").and_then(|v| v.as_str()).unwrap_or("");
+        if text.trim().is_empty() {
+            continue;
+        }
+        // bubble type: 1 = user, 2 = assistant
+        let is_user = match b
+            .get("type")
+            .and_then(|v| v.as_i64())
+            .or_else(|| h.get("type").and_then(|v| v.as_i64()))
+        {
+            Some(1) => true,
+            Some(2) => false,
+            _ => false,
+        };
+        events.push(CodingEvent {
+            event_type: if is_user {
+                EventType::UserPrompt
+            } else {
+                EventType::AgentResponse
+            },
+            timestamp: String::new(),
+            content: text.to_string(),
+            metadata: Value::Null,
+        });
+    }
+    events
 }
 
 /// Find the workspaceStorage hash dir whose workspace.json folder == project_dir.
@@ -79,8 +134,8 @@ fn find_workspace(ws_storage: &Path, project_dir: &Path) -> Option<std::path::Pa
     None
 }
 
-/// (composerId, lastUpdatedAt_secs) for composers referenced by this workspace.
-fn workspace_composers(ws_db: &Path) -> Vec<(String, i64)> {
+/// Composer ids referenced by this workspace (allComposers + selected/lastFocused).
+fn workspace_composer_ids(ws_db: &Path) -> Vec<String> {
     let mut out = Vec::new();
     let Some(conn) = open_ro(ws_db) else {
         return out;
@@ -91,25 +146,18 @@ fn workspace_composers(ws_db: &Path) -> Vec<(String, i64)> {
     let Ok(d) = serde_json::from_str::<Value>(&blob) else {
         return out;
     };
-    // newer Cursor: allComposers[]; also selected/lastFocused id lists
     if let Some(arr) = d.get("allComposers").and_then(|v| v.as_array()) {
         for c in arr {
             if let Some(id) = c.get("composerId").and_then(|v| v.as_str()) {
-                let updated = c
-                    .get("lastUpdatedAt")
-                    .or_else(|| c.get("createdAt"))
-                    .and_then(|v| v.as_i64())
-                    .map(|ms| ms / 1000)
-                    .unwrap_or(0);
-                out.push((id.to_string(), updated));
+                out.push(id.to_string());
             }
         }
     }
     for key in ["selectedComposerIds", "lastFocusedComposerIds"] {
         if let Some(arr) = d.get(key).and_then(|v| v.as_array()) {
             for id in arr.iter().filter_map(|v| v.as_str()) {
-                if !out.iter().any(|(e, _)| e == id) {
-                    out.push((id.to_string(), 0));
+                if !out.iter().any(|e| e == id) {
+                    out.push(id.to_string());
                 }
             }
         }
@@ -117,59 +165,21 @@ fn workspace_composers(ws_db: &Path) -> Vec<(String, i64)> {
     out
 }
 
-/// Recursively collect (role, text) from a composer blob. Cursor bubbles use
-/// `type` 1=user / 2=assistant (and/or a `role` field) with a `text` field.
-fn harvest_messages(d: &Value, events: &mut Vec<CodingEvent>) {
-    fn walk(v: &Value, events: &mut Vec<CodingEvent>) {
-        match v {
-            Value::Object(map) => {
-                let text = map.get("text").and_then(|t| t.as_str());
-                if let Some(t) = text {
-                    if !t.trim().is_empty() {
-                        let is_user = match map.get("type").and_then(|x| x.as_i64()) {
-                            Some(1) => true,
-                            Some(2) => false,
-                            _ => map.get("role").and_then(|r| r.as_str()) == Some("user"),
-                        };
-                        let et = if is_user {
-                            EventType::UserPrompt
-                        } else {
-                            EventType::AgentResponse
-                        };
-                        events.push(CodingEvent {
-                            event_type: et,
-                            timestamp: String::new(),
-                            content: t.to_string(),
-                            metadata: Value::Null,
-                        });
-                    }
-                }
-                for (_, child) in map {
-                    walk(child, events);
-                }
-            }
-            Value::Array(a) => {
-                for child in a {
-                    walk(child, events);
-                }
-            }
-            _ => {}
-        }
-    }
-    walk(d, events);
-}
-
 fn open_ro(path: &Path) -> Option<Connection> {
-    Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).ok()
+    // immutable=1 reads cleanly even while Cursor holds the DB (WAL).
+    let uri = format!("file:{}?immutable=1", path.to_string_lossy());
+    Connection::open_with_flags(
+        uri,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
+    )
+    .ok()
 }
 
 fn kv_get(conn: &Connection, key: &str) -> Option<String> {
-    // try cursorDiskKV then ItemTable; value may be TEXT or BLOB.
     for table in ["cursorDiskKV", "ItemTable"] {
         let sql = format!("SELECT value FROM {table} WHERE key = ?1");
         if let Ok(mut stmt) = conn.prepare(&sql) {
             let got: rusqlite::Result<String> = stmt.query_row([key], |r| {
-                // BLOB or TEXT -> String
                 r.get::<_, String>(0).or_else(|_| {
                     r.get::<_, Vec<u8>>(0)
                         .map(|b| String::from_utf8_lossy(&b).into_owned())
@@ -191,7 +201,6 @@ fn canon(p: &Path) -> String {
 }
 
 fn percent_decode(s: &str) -> String {
-    // minimal: handle %20 etc. without a dep
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
@@ -238,7 +247,6 @@ mod tests {
         std::fs::create_dir_all(&proj).unwrap();
         let proj_canon = canon(&proj);
 
-        // workspaceStorage/<hash>/{workspace.json,state.vscdb}
         let ws = user.join("workspaceStorage").join("hash1");
         std::fs::create_dir_all(&ws).unwrap();
         std::fs::write(
@@ -251,20 +259,26 @@ mod tests {
             "ItemTable",
             &[(
                 "composer.composerData",
-                r#"{"allComposers":[{"composerId":"c1","lastUpdatedAt":1700000000000}]}"#,
+                r#"{"allComposers":[{"composerId":"c1"}]}"#,
             )],
         );
 
-        // globalStorage/state.vscdb cursorDiskKV composerData:c1
         let global = user.join("globalStorage");
         std::fs::create_dir_all(&global).unwrap();
         make_db(
             &global.join("state.vscdb"),
             "cursorDiskKV",
-            &[(
-                "composerData:c1",
-                r#"{"composerId":"c1","conversation":[{"type":1,"text":"add redis caching"},{"type":2,"text":"Added a Redis client and config."}]}"#,
-            )],
+            &[
+                (
+                    "composerData:c1",
+                    r#"{"composerId":"c1","lastUpdatedAt":1700000000000,"fullConversationHeadersOnly":[{"bubbleId":"b1","type":1},{"bubbleId":"b2","type":2}]}"#,
+                ),
+                ("bubbleId:c1:b1", r#"{"type":1,"text":"add redis caching"}"#),
+                (
+                    "bubbleId:c1:b2",
+                    r#"{"type":2,"text":"Added a Redis client and config."}"#,
+                ),
+            ],
         );
 
         let sess = read_session(&user, &proj).expect("should read");
@@ -275,8 +289,11 @@ mod tests {
             .iter()
             .map(|e| (e.event_type, e.content.as_str()))
             .collect();
-        assert!(c.contains(&(EventType::UserPrompt, "add redis caching")));
-        assert!(c.contains(&(EventType::AgentResponse, "Added a Redis client and config.")));
+        assert_eq!(c[0], (EventType::UserPrompt, "add redis caching"));
+        assert_eq!(
+            c[1],
+            (EventType::AgentResponse, "Added a Redis client and config.")
+        );
     }
 
     #[test]
@@ -310,5 +327,29 @@ mod tests {
         std::fs::create_dir_all(&global).unwrap();
         make_db(&global.join("state.vscdb"), "cursorDiskKV", &[]);
         assert!(read_session(&user, &proj).is_none());
+    }
+
+    /// Live check against real Cursor data. Ignored by default; run with:
+    /// `AFTERCODE_CURSOR_LIVE=/abs/path/to/repo cargo test -p aftercode-cli -- --ignored live_cursor`
+    #[test]
+    #[ignore]
+    fn live_cursor() {
+        let proj = std::env::var("AFTERCODE_CURSOR_LIVE").expect("set AFTERCODE_CURSOR_LIVE");
+        let user = dirs::config_dir().unwrap().join("Cursor").join("User");
+        let sess = read_session(&user, Path::new(&proj));
+        match sess {
+            Some(s) => {
+                eprintln!("cursor: {} events, ended_at={}", s.events.len(), s.ended_at);
+                for e in s.events.iter().take(4) {
+                    eprintln!(
+                        "  {:?}: {}",
+                        e.event_type,
+                        &e.content[..e.content.len().min(80)]
+                    );
+                }
+                assert!(!s.events.is_empty());
+            }
+            None => panic!("no cursor session found for {proj}"),
+        }
     }
 }
