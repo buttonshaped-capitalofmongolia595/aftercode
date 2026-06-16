@@ -48,7 +48,7 @@ docker compose up -d
 #    → open http://localhost:8080   ·   token printed in:  docker compose logs aftercode
 
 # 2. The CLI
-cargo install --git https://github.com/REPLACE_ME/aftercode aftercode
+cargo install --git https://github.com/ron3899/aftercode aftercode
 
 # 3. Log in, then make an episode in any repo
 aftercode login                 # opens the browser → click Approve
