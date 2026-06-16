@@ -12,6 +12,14 @@ Aftercode connects to your coding-agent workflow (Claude Code, Codex, Cursor, â€
 
 Open source (MIT OR Apache-2.0), CLI-first, self-hostable.
 
+## Demo
+
+https://github.com/ron3899/aftercode/releases/download/v0.1.0/demo.mp4
+
+<video src="https://github.com/ron3899/aftercode/releases/download/v0.1.0/demo.mp4" controls width="720"></video>
+
+â–¶ If it doesn't play above, [watch the demo](https://github.com/ron3899/aftercode/releases/download/v0.1.0/demo.mp4).
+
 ## How it works
 
 ```
