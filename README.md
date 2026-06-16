@@ -37,46 +37,71 @@ migrations/              SQLite schema (auto-applied on startup)
 docs/                    PRD, self-hosting, architecture, design specs
 ```
 
-## Get started (≈2 minutes)
+## Install
 
-Three steps. The backend + web UI run in Docker (no Rust/Node/DB to install); the CLI is a
-small native install because it reads your local coding-agent session files.
+**You need:** [Docker](https://docs.docker.com/get-docker/) (runs the backend + web UI) and
+[Rust](https://rustup.rs) (for the `aftercode` CLI — it must run natively to read your local
+coding-agent session files). That's it — no database, no Node.
+
+Copy-paste these four commands:
 
 ```bash
-# 1. Backend + Web UI  (works with NO keys in "mock" mode; add keys for real episodes)
+# 1. Get the code
+git clone https://github.com/ron3899/aftercode && cd aftercode
+
+# 2. Start the backend + web UI  →  http://localhost:8080
+#    (first run builds the image once, ~5 min; after that it's instant)
 docker compose up -d
-#    → open http://localhost:8080   ·   token printed in:  docker compose logs aftercode
 
-# 2. The CLI
-cargo install --git https://github.com/ron3899/aftercode aftercode
+# 3. Install the CLI
+cargo install --path crates/aftercode-cli
 
-# 3. Log in, then make an episode in any repo
-aftercode login                 # opens the browser → click Approve
-cd your-project
-aftercode episode --language en   # or --language he
+# 4. Log in (opens your browser → click Approve)
+aftercode login
 ```
 
-Open **http://localhost:8080** to browse and play your episodes.
+Now open **http://localhost:8080** to browse episodes, and run `aftercode episode` in any
+project. Step 2 works with **no API keys** (mock mode) so you can try it immediately.
 
-**Real episodes:** create a `.env` next to `docker-compose.yml` with your keys, then
-`docker compose up -d` again:
+**For real episodes**, create a `.env` in the repo with your keys, then `docker compose up -d`
+again:
 
 ```
 LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-...
-TTS_PROVIDER=openai      # uses tts-1; or elevenlabs with its keys
+TTS_PROVIDER=openai        # voice via OpenAI tts-1; or set TTS_PROVIDER=elevenlabs + its keys
 ```
 
-<details>
-<summary>Run from source instead (no Docker)</summary>
+> Port 8080 taken? Run `PORT=9000 docker compose up -d` and use that port everywhere.
 
-Requires Rust + Node. No database server — SQLite file, auto-created.
+## Use it inside your coding agent
+
+The CLI auto-detects your **current session** from whatever agent you used, so the simplest
+workflow is: finish a chunk of work, then make the episode.
+
+- **In the terminal** (any agent): `aftercode episode --language en` (or `he`). It reads the
+  latest **Cursor**, **Claude Code**, or **Codex** session for that repo automatically.
+- **Ask the agent to do it for you.** Since the agent has a terminal, just tell it:
+  > "Run `aftercode episode --language en` to turn what we just did into a podcast."
+- **Claude Code / Codex (CLI agents):** run it right after your session in the same folder —
+  detection finds the transcript. If you ran from a different folder, hand the transcript in
+  directly: `aftercode episode --transcript -` (pipe a transcript) — never fails detection.
+- **Cursor / Windsurf (editor agents):** open the editor's terminal in your project and run
+  `aftercode episode`; it reads Cursor's live session for that workspace.
+
+Run `aftercode preview` first to see which agent + session was detected and exactly what will
+be sent.
+
+<details>
+<summary>Run everything from source (no Docker)</summary>
+
+Requires Rust + Node.
 
 ```bash
 cd web && npm install && npm run build && cd ..   # build the UI (served at /)
 cp .env.example .env                              # add keys, or leave mock to try
-cargo run -p aftercode-server                     # first run prints a login token
-cargo install --path crates/aftercode-cli         # the CLI
+cargo run -p aftercode-server                     # first run prints a login token + URL
+cargo install --path crates/aftercode-cli
 aftercode login && cd your-project && aftercode episode --language en
 ```
 </details>
