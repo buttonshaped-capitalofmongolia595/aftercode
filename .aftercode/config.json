@@ -1,0 +1,17 @@
+{
+  "project_id": "c519d685-38b0-49f4-bf9c-7beb62a60855",
+  "project_name": "aftercode",
+  "language": "he",
+  "episode_length_minutes": 10,
+  "api_base_url": "http://localhost:8090",
+  "privacy": {
+    "ignore_paths": [
+      ".env",
+      "node_modules",
+      "dist",
+      "build"
+    ],
+    "send_raw_code": false,
+    "send_diffs": true
+  }
+}

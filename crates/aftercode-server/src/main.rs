@@ -56,6 +56,26 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let state = state::AppState::new(cfg.clone()).await?;
+
+    // First-run convenience: with an empty DB, mint a token and show how to log in.
+    let users: i64 = sqlx::query_scalar("SELECT count(*) FROM users")
+        .fetch_one(&state.db)
+        .await?;
+    if users == 0 {
+        let token = format!("ak_{}", uuid::Uuid::new_v4().simple());
+        sqlx::query("INSERT INTO users (id, email, token_hash) VALUES (?, 'admin@local', ?)")
+            .bind(uuid::Uuid::new_v4())
+            .bind(auth::hash_token(&token))
+            .execute(&state.db)
+            .await?;
+        println!("\n──────────────────────────────────────────────");
+        println!("  Aftercode is ready.");
+        println!("  Web UI:  {}", cfg.public_url);
+        println!("  CLI:     aftercode login {token}");
+        println!("           (or open the Web UI and click Sign in → Approve)");
+        println!("──────────────────────────────────────────────\n");
+    }
+
     let app = routes::router(state);
     let listener = tokio::net::TcpListener::bind(&cfg.bind_addr).await?;
     tracing::info!("listening on {}", cfg.bind_addr);

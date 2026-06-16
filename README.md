@@ -37,30 +37,49 @@ migrations/              SQLite schema (auto-applied on startup)
 docs/                    PRD, self-hosting, architecture, design specs
 ```
 
-## Quickstart (self-host)
+## Get started (≈2 minutes)
 
-Requires Rust (stable). Building the web UI also needs Node. **No database server** —
-storage is a local SQLite file (`aftercode.db`), created and migrated automatically.
+Three steps. The backend + web UI run in Docker (no Rust/Node/DB to install); the CLI is a
+small native install because it reads your local coding-agent session files.
 
 ```bash
-# 1. (optional) Build the web UI — the backend serves it at /
-cd web && npm install && npm run build && cd ..
+# 1. Backend + Web UI  (works with NO keys in "mock" mode; add keys for real episodes)
+docker compose up -d
+#    → open http://localhost:8080   ·   token printed in:  docker compose logs aftercode
 
-# 2. Backend
-cp .env.example .env   # add API keys (or set LLM_PROVIDER=mock, TTS_PROVIDER=mock to try without keys)
-cargo run -p aftercode-server seed-user you@example.com   # creates the DB + prints a token: ak_...
-cargo run -p aftercode-server                             # serves API + web UI on :8080
+# 2. The CLI
+cargo install --git https://github.com/REPLACE_ME/aftercode aftercode
 
-# 3. CLI
-cargo install --path crates/aftercode-cli   # installs `aftercode`
-aftercode login                  # opens the browser, click Approve — done
-cd your-project && aftercode init           # set Backend URL to your server
-aftercode preview
-aftercode episode --language en             # or --language he
+# 3. Log in, then make an episode in any repo
+aftercode login                 # opens the browser → click Approve
+cd your-project
+aftercode episode --language en   # or --language he
 ```
 
-Then open the backend URL (e.g. `http://localhost:8080`) in your browser to see your
-episode playlist.
+Open **http://localhost:8080** to browse and play your episodes.
+
+**Real episodes:** create a `.env` next to `docker-compose.yml` with your keys, then
+`docker compose up -d` again:
+
+```
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+TTS_PROVIDER=openai      # uses tts-1; or elevenlabs with its keys
+```
+
+<details>
+<summary>Run from source instead (no Docker)</summary>
+
+Requires Rust + Node. No database server — SQLite file, auto-created.
+
+```bash
+cd web && npm install && npm run build && cd ..   # build the UI (served at /)
+cp .env.example .env                              # add keys, or leave mock to try
+cargo run -p aftercode-server                     # first run prints a login token
+cargo install --path crates/aftercode-cli         # the CLI
+aftercode login && cd your-project && aftercode episode --language en
+```
+</details>
 
 ## Web UI
 

@@ -1,0 +1,31 @@
+services:
+  aftercode:
+    build: .
+    # Host port. Change with: PORT=9000 docker compose up
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      # Storage (SQLite file + audio) lives in the ./data volume.
+      DATABASE_URL: sqlite:///data/aftercode.db?mode=rwc
+      LOCALFS_DIR: /data/audio
+      BLOB_STORE: ${BLOB_STORE:-localfs}
+      BIND_ADDR: 0.0.0.0:8080
+      APP_PUBLIC_URL: http://localhost:${PORT:-8080}
+      WEB_DIST: /app/web/dist
+      # Providers default to "mock" so `docker compose up` works with NO keys.
+      # Put real keys in a .env file next to this compose file to switch on real
+      # generation (compose auto-reads .env for the ${...} values below).
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      TTS_PROVIDER: ${TTS_PROVIDER:-mock}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_TTS_MODEL: ${OPENAI_TTS_MODEL:-tts-1}
+      OPENAI_TTS_VOICE_HOST: ${OPENAI_TTS_VOICE_HOST:-alloy}
+      OPENAI_TTS_VOICE_EXPERT: ${OPENAI_TTS_VOICE_EXPERT:-onyx}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      ELEVENLABS_HOST_VOICE_ID: ${ELEVENLABS_HOST_VOICE_ID:-}
+      ELEVENLABS_EXPERT_VOICE_ID: ${ELEVENLABS_EXPERT_VOICE_ID:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+    volumes:
+      - ./data:/data # SQLite DB + generated audio persist here
+    restart: unless-stopped
