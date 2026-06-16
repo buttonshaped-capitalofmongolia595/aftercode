@@ -1,0 +1,28 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Aftercode logo">
+  <defs>
+    <radialGradient id="glow" cx="72%" cy="20%" r="90%">
+      <stop offset="0%" stop-color="#e0794b" stop-opacity="0.28"/>
+      <stop offset="60%" stop-color="#e0794b" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ember" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0a06a"/>
+      <stop offset="100%" stop-color="#e0794b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- tile -->
+  <rect x="2" y="2" width="252" height="252" rx="58" fill="#14110f"/>
+  <rect x="2" y="2" width="252" height="252" rx="58" fill="url(#glow)"/>
+  <rect x="2.5" y="2.5" width="251" height="251" rx="57.5" stroke="#2a2420" stroke-width="3"/>
+
+  <!-- terminal prompt chevron (code) -->
+  <path d="M70 96 L98 128 L70 160" stroke="#8a8178" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- audio waveform / equalizer (podcast) -->
+  <g fill="url(#ember)">
+    <rect x="120" y="112" width="13" height="32" rx="6.5"/>
+    <rect x="143" y="92"  width="13" height="72" rx="6.5"/>
+    <rect x="166" y="76"  width="13" height="104" rx="6.5"/>
+    <rect x="189" y="100" width="13" height="56" rx="6.5"/>
+  </g>
+</svg>

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/banner.svg" alt="Aftercode" width="640">
+</p>
+
 # Aftercode
 
 **Turn your daily AI coding sessions into personalized learning podcasts.**

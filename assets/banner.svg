@@ -1,0 +1,33 @@
+<svg width="900" height="240" viewBox="0 0 900 240" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Aftercode — turn vibe coding into real learning">
+  <defs>
+    <radialGradient id="bg" cx="78%" cy="0%" r="110%">
+      <stop offset="0%" stop-color="#e0794b" stop-opacity="0.16"/>
+      <stop offset="55%" stop-color="#e0794b" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="e" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0a06a"/>
+      <stop offset="100%" stop-color="#e0794b"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="240" rx="28" fill="#14110f"/>
+  <rect width="900" height="240" rx="28" fill="url(#bg)"/>
+
+  <!-- mark: prompt chevron + waveform -->
+  <g transform="translate(72,84)">
+    <path d="M0 0 L24 28 L0 56" stroke="#8a8178" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <g fill="url(#e)">
+      <rect x="44" y="16" width="11" height="26" rx="5.5"/>
+      <rect x="64" y="-2" width="11" height="62" rx="5.5"/>
+      <rect x="84" y="-14" width="11" height="86" rx="5.5"/>
+      <rect x="104" y="6" width="11" height="46" rx="5.5"/>
+    </g>
+  </g>
+
+  <!-- wordmark -->
+  <text x="232" y="128" font-family="Georgia, 'Times New Roman', serif" font-size="78" font-weight="700" letter-spacing="-1">
+    <tspan fill="#f3ece2">after</tspan><tspan fill="#e0794b">code</tspan>
+  </text>
+  <!-- tagline -->
+  <text x="235" y="170" font-family="ui-monospace, 'JetBrains Mono', Menlo, monospace" font-size="21" letter-spacing="2" fill="#8a8178">turn vibe coding into real learning</text>
+</svg>
