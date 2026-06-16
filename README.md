@@ -14,11 +14,9 @@ Open source (MIT OR Apache-2.0), CLI-first, self-hostable.
 
 ## Demo
 
-https://github.com/ron3899/aftercode/releases/download/v0.1.0/demo.mp4
+![Aftercode demo](assets/demo.gif)
 
-<video src="https://github.com/ron3899/aftercode/releases/download/v0.1.0/demo.mp4" controls width="720"></video>
-
-▶ If it doesn't play above, [watch the demo](https://github.com/ron3899/aftercode/releases/download/v0.1.0/demo.mp4).
+▶ [Watch with sound](https://github.com/ron3899/aftercode/releases/download/v0.1.0/demo.mp4) (full-quality MP4)
 
 ## How it works
 
