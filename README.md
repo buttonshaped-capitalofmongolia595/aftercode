@@ -49,40 +49,50 @@ docs/                    PRD, self-hosting, architecture, design specs
 
 ## Install
 
-**You need:** [Docker](https://docs.docker.com/get-docker/) (runs the backend + web UI) and
-[Rust](https://rustup.rs) (for the `aftercode` CLI — it must run natively to read your local
-coding-agent session files). That's it — no database, no Node.
-
-Copy-paste these four commands:
+No clone, no compile. Backend runs as a published Docker image; the CLI installs from a
+Homebrew tap. You need [Docker](https://docs.docker.com/get-docker/) and
+[Homebrew](https://brew.sh) (macOS/Linux).
 
 ```bash
-# 1. Get the code
-git clone https://github.com/ron3899/aftercode && cd aftercode
+# 1. Start the backend + web UI  →  http://localhost:8080  (no API keys = mock mode)
+docker run -d --name aftercode -p 8080:8080 -v aftercode:/data ghcr.io/ron3899/aftercode
 
-# 2. Start the backend + web UI  →  http://localhost:8080
-#    (first run builds the image once, ~5 min; after that it's instant)
-docker compose up -d
+# 2. Install the CLI
+brew install ron3899/aftercode/aftercode
 
-# 3. Install the CLI
-cargo install --path crates/aftercode-cli
-
-# 4. Log in (opens your browser → click Approve)
+# 3. Log in (opens your browser → click Approve)
 aftercode login
 ```
 
-Now open **http://localhost:8080** to browse episodes, and run `aftercode episode` in any
-project. Step 2 works with **no API keys** (mock mode) so you can try it immediately.
+Open **http://localhost:8080** to browse episodes, and run `aftercode episode` in any project.
 
-**For real episodes**, create a `.env` in the repo with your keys, then `docker compose up -d`
-again:
+**For real episodes**, pass your keys to the container:
 
+```bash
+docker rm -f aftercode
+docker run -d --name aftercode -p 8080:8080 -v aftercode:/data \
+  -e LLM_PROVIDER=openai -e OPENAI_API_KEY=sk-... \
+  -e TTS_PROVIDER=openai \
+  ghcr.io/ron3899/aftercode
+# TTS_PROVIDER=openai uses OpenAI tts-1; or set TTS_PROVIDER=elevenlabs + its keys.
 ```
-LLM_PROVIDER=openai
-OPENAI_API_KEY=sk-...
-TTS_PROVIDER=openai        # voice via OpenAI tts-1; or set TTS_PROVIDER=elevenlabs + its keys
+
+> Port 8080 taken? Map another: `-p 9000:8080` and use 9000 everywhere.
+
+<details>
+<summary>From source (Docker Compose + cargo)</summary>
+
+Needs [Rust](https://rustup.rs) too.
+
+```bash
+git clone https://github.com/ron3899/aftercode && cd aftercode
+docker compose up -d                          # backend + web UI, builds once (~5 min)
+cargo install --path crates/aftercode-cli     # the CLI
+aftercode login
 ```
 
-> Port 8080 taken? Run `PORT=9000 docker compose up -d` and use that port everywhere.
+For real episodes, put your keys in a `.env` (see `.env.example`) and `docker compose up -d` again.
+</details>
 
 ## Use it inside your coding agent
 
